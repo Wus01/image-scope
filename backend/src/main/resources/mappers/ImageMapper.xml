@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.example.demo.mapper.ImageMapper">
+
+    <insert id="insertImageJob">
+
+        INSERT INTO image_job (
+            id,
+            client_id,
+            original_name,
+            mime_type,
+            original_size,
+            original_width,
+            original_height,
+            megapixels,
+            estimated_memory_bytes,
+            status,
+            failure_reason,
+            original_object_key
+        )
+        VALUES (
+            CAST(#{id} AS UUID),
+            CAST(#{clientId} AS UUID),
+            #{originalName},
+            #{mimeType},
+            #{originalSize},
+            #{originalWidth},
+            #{originalHeight},
+            #{megapixels},
+            #{estimatedMemoryBytes},
+            #{status},
+            #{failureReason},
+            #{originalObjectKey}
+        )
+
+    </insert>
+    <insert id="insertImageVariant">
+
+        INSERT INTO image_variant (
+            id,
+            image_id,
+            variant_type,
+            format,
+            file_size,
+            width,
+            height,
+            object_key
+        )
+        VALUES (
+            CAST(#{id} AS UUID),
+            CAST(#{imageId} AS UUID),
+            #{variantType},
+            #{format},
+            #{fileSize},
+            #{width},
+            #{height},
+            #{objectKey}
+        )
+
+    </insert>
+</mapper>
