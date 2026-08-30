@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Locale;
 import java.util.UUID;
 
 import javax.imageio.ImageIO;
@@ -27,6 +28,8 @@ import com.example.demo.dto.ImageUploadResponse;
 import com.example.demo.dto.PreviewResult;
 import com.example.demo.dto.StoredImage;
 import com.example.demo.mapper.ImageMapper;
+import java.util.Locale;
+
 @Service
 public class ImageService {
     private static final long MAX_FILE_SIZE_BYTES = 20L * 1024 * 1024;
@@ -340,7 +343,7 @@ public class ImageService {
     }
 
     private String convertMimeType(String format) {
-        return switch (format) {
+        return switch (format.toLowerCase(Locale.ROOT)) {
             case "jpg", "jpeg" -> "image/jpeg";
             case "png" -> "image/png";
             case "gif" -> "image/gif";
