@@ -8,8 +8,6 @@
 
 ## 화면
 
-아래 화면을 캡처하여 `docs/images` 폴더에 추가되어있습니다.
-
 * 이미지 업로드 화면
   <img width="1862" height="907" alt="ImageScope_main" src="https://github.com/user-attachments/assets/37a208bf-2f03-4b5d-b1c4-ff2700aef836" />
 
