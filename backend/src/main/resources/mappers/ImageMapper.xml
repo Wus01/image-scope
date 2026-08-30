@@ -62,4 +62,60 @@
         )
 
     </insert>
+
+    <select id="selectImagesByClientId"
+            resultType="com.example.demo.dto.ImageListItemResponse">
+
+        SELECT
+            CAST(job.id AS VARCHAR) AS image_id,
+            job.original_name,
+            job.mime_type,
+            job.original_size,
+            job.original_width AS width,
+            job.original_height AS height,
+            job.megapixels,
+            job.estimated_memory_bytes,
+            job.status,
+            CASE
+                WHEN job.status = 'COMPLETED'
+                    THEN '원본 및 미리보기 이미지 처리가 완료되었습니다.'
+                WHEN job.status IN ('FAILED', 'REJECTED')
+                    THEN job.failure_reason
+                ELSE '이미지 처리 중입니다.'
+            END AS message,
+            CASE
+                WHEN variant.id IS NOT NULL
+                    THEN '/api/images/' || CAST(job.id AS VARCHAR) || '/preview'
+                ELSE NULL
+            END AS preview_url,
+            job.created_at
+        FROM image_job job
+        LEFT JOIN image_variant variant
+            ON variant.image_id = job.id
+            AND variant.variant_type = 'PREVIEW'
+        WHERE job.client_id = CAST(#{clientId} AS UUID)
+        ORDER BY job.created_at DESC
+
+    </select>
+
+    <select id="selectPreviewByImageIdAndClientId"
+            resultType="com.example.demo.domain.ImageVariant">
+
+        SELECT
+            CAST(variant.id AS VARCHAR) AS id,
+            CAST(variant.image_id AS VARCHAR) AS image_id,
+            variant.variant_type,
+            variant.format,
+            variant.file_size,
+            variant.width,
+            variant.height,
+            variant.object_key
+        FROM image_variant variant
+        INNER JOIN image_job job
+            ON job.id = variant.image_id
+        WHERE variant.image_id = CAST(#{imageId} AS UUID)
+          AND job.client_id = CAST(#{clientId} AS UUID)
+          AND variant.variant_type = 'PREVIEW'
+
+    </select>
 </mapper>

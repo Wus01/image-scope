@@ -9,6 +9,7 @@ import org.springframework.web.multipart.MultipartFile;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
+import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.model.S3Exception;
 import com.example.demo.dto.PreviewResult;
@@ -102,6 +103,23 @@ public class StorageService {
         } catch (S3Exception exception) {
             throw new IllegalStateException(
                     "미리보기 이미지 Storage 저장에 실패했습니다.",
+                    exception
+            );
+        }
+    }
+
+    public byte[] download(String objectKey) {
+        GetObjectRequest request = GetObjectRequest.builder()
+                .bucket(bucket)
+                .key(objectKey)
+                .build();
+
+        try {
+            return s3Client.getObjectAsBytes(request).asByteArray();
+
+        } catch (S3Exception exception) {
+            throw new IllegalStateException(
+                    "Storage 이미지를 불러오지 못했습니다.",
                     exception
             );
         }

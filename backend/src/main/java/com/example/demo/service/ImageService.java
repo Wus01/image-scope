@@ -3,6 +3,7 @@ package com.example.demo.service;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Iterator;
+import java.util.List;
 import java.util.UUID;
 
 import javax.imageio.ImageIO;
@@ -10,6 +11,7 @@ import javax.imageio.ImageReader;
 import javax.imageio.stream.ImageInputStream;
 
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -18,8 +20,10 @@ import org.springframework.web.server.ResponseStatusException;
 
 import com.example.demo.domain.ImageJob;
 import com.example.demo.domain.ImageVariant;
+import com.example.demo.dto.ImageListItemResponse;
 import com.example.demo.dto.ImageUploadResponse;
 import com.example.demo.dto.PreviewResult;
+import com.example.demo.dto.StoredImage;
 import com.example.demo.mapper.ImageMapper;
 @Service
 public class ImageService {
@@ -148,6 +152,38 @@ public class ImageService {
         }
     }
 
+    @Transactional(readOnly = true)
+    public List<ImageListItemResponse> getImages(String clientId) {
+        validateClientId(clientId);
+
+        return imageMapper.selectImagesByClientId(clientId);
+    }
+
+    @Transactional(readOnly = true)
+    public StoredImage getPreview(String imageId, String clientId) {
+        validateClientId(clientId);
+        validateImageId(imageId);
+
+        ImageVariant preview = imageMapper.selectPreviewByImageIdAndClientId(
+                imageId,
+                clientId
+        );
+
+        if (preview == null) {
+            throw new ResponseStatusException(
+                    HttpStatus.NOT_FOUND,
+                    "미리보기 이미지를 찾을 수 없습니다."
+            );
+        }
+
+        byte[] bytes = storageService.download(preview.objectKey());
+
+        return new StoredImage(
+                bytes,
+                previewMimeType(preview.format())
+        );
+    }
+
     private void validateClientId(String clientId){
         try{
             UUID.fromString(clientId);
@@ -155,6 +191,27 @@ public class ImageService {
         } catch (IllegalArgumentException e){
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "X-Client-Id는 UUID 형식이어야 합니다");
         }
+    }
+
+    private void validateImageId(String imageId) {
+        try {
+            UUID.fromString(imageId);
+
+        } catch (IllegalArgumentException exception) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "imageId는 UUID 형식이어야 합니다."
+            );
+        }
+    }
+
+    private String previewMimeType(String format) {
+        return switch (format.toLowerCase()) {
+            case "jpg", "jpeg" -> MediaType.IMAGE_JPEG_VALUE;
+            case "png" -> MediaType.IMAGE_PNG_VALUE;
+            case "gif" -> MediaType.IMAGE_GIF_VALUE;
+            default -> MediaType.APPLICATION_OCTET_STREAM_VALUE;
+        };
     }
 
     private void validateFile(MultipartFile file){
