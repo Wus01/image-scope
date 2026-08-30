@@ -7,6 +7,8 @@ public record ImageListItemResponse(
         String originalName,
         String mimeType,
         long originalSize,
+        Long previewSize,
+        Double reductionRatePercent,
         int width,
         int height,
         double megapixels,

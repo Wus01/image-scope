@@ -180,7 +180,8 @@ main {
 }
 
 .upload-icon svg,
-.refresh-button svg {
+.refresh-button svg,
+.delete-button svg {
   width: 25px;
   height: 25px;
   fill: none;
@@ -338,6 +339,98 @@ main {
 .card-meta { margin-top: 17px; padding-top: 13px; border-top: 1px solid #e4e7e1; color: #8a928e; font: 400 10px/1.4 'DM Mono', monospace; }
 .card-message { color: var(--danger) !important; line-height: 1.5; }
 
+.card-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.download-button,
+.delete-button {
+  width: 100%;
+  min-height: 38px;
+  border: 1px solid #e3cbc7;
+  border-radius: 9px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  color: #9b453b;
+  background: #fff8f5;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: border-color 160ms ease, background 160ms ease;
+}
+.download-button { border-color: #c9d8ce; color: var(--green); background: #f5faf5; }
+.download-button:hover:not(:disabled) { border-color: #7ba08b; background: #edf7ee; }
+.delete-button:hover:not(:disabled) { border-color: #c98980; background: #fff0ec; }
+.download-button:focus-visible,
+.delete-button:focus-visible { outline: 3px solid rgba(179, 69, 57, 0.2); outline-offset: 2px; }
+.download-button:disabled,
+.delete-button:disabled { cursor: wait; opacity: 0.58; }
+.download-button svg,
+.delete-button svg { width: 15px; height: 15px; }
+.delete-spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(155, 69, 59, 0.25);
+  border-top-color: #9b453b;
+  border-radius: 50%;
+  animation: spin 700ms linear infinite;
+}
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(20, 29, 25, 0.55);
+  backdrop-filter: blur(6px);
+}
+
+.download-dialog {
+  width: min(100%, 460px);
+  padding: 28px;
+  border: 1px solid #cad3c9;
+  border-radius: 20px;
+  background: #fbfcf8;
+  box-shadow: 0 30px 80px rgba(12, 27, 20, 0.28);
+}
+.download-dialog h2 { margin: 0; color: var(--ink); font-size: 23px; }
+.download-dialog > p:not(.section-kicker) { margin: 9px 0 22px; color: var(--muted); overflow-wrap: anywhere; }
+.download-options { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.download-options button {
+  min-height: 92px;
+  padding: 15px;
+  border: 1px solid #cbd6cd;
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 6px;
+  color: var(--ink);
+  background: #f5f8f3;
+  cursor: pointer;
+}
+.download-options button:hover:not(:disabled) { border-color: var(--green); background: #edf6ec; }
+.download-options button:disabled { cursor: not-allowed; opacity: 0.45; }
+.download-options span { color: var(--muted); font-size: 11px; }
+.modal-cancel-button {
+  width: 100%;
+  margin-top: 12px;
+  padding: 11px;
+  border: 0;
+  color: var(--muted);
+  background: transparent;
+  cursor: pointer;
+}
+.modal-cancel-button:disabled { cursor: wait; }
+
 .empty-state { margin-top: 30px; padding: 70px 24px; border: 1px dashed #bdc8be; border-radius: 18px; text-align: center; background: rgba(251, 252, 248, 0.56); }
 .empty-mark { width: 46px; height: 38px; margin: 0 auto 19px; border: 2px solid #91a197; border-radius: 8px; display: block; position: relative; }
 .empty-mark::before { content: ''; position: absolute; width: 9px; height: 9px; top: 7px; right: 8px; border-radius: 50%; background: var(--lime); border: 1px solid #728078; }
@@ -398,6 +491,7 @@ footer p { margin: 0; }
   .image-grid,
   .loading-grid { grid-template-columns: 1fr; }
   .refresh-button { padding: 9px; font-size: 0; }
+  .download-options { grid-template-columns: 1fr; }
   footer { flex-direction: column; align-items: flex-start; }
 }
 

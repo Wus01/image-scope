@@ -19,6 +19,8 @@ type ImageItem = {
   originalName: string
   mimeType: string
   originalSize: number
+  previewSize: number | null
+  reductionRatePercent: number | null
   width: number
   height: number
   megapixels: number
@@ -35,6 +37,8 @@ type UploadResponse = {
   originalName: string
   mimeType: string
   originalSize: number
+  previewSize: number | null
+  reductionRatePercent: number | null
   width: number
   height: number
   megapixels: number
@@ -48,6 +52,8 @@ type ErrorPayload = {
   message?: string
   error?: string
 }
+
+type DownloadType = 'preview' | 'original'
 
 const statusLabel: Record<ImageItem['status'], string> = {
   PROCESSING: '처리 중',
@@ -69,6 +75,10 @@ function formatBytes(bytes: number) {
   if (bytes < 1024) return `${bytes} B`
   if (bytes < 1024 ** 2) return `${(bytes / 1024).toFixed(1)} KB`
   return `${(bytes / 1024 ** 2).toFixed(1)} MB`
+}
+
+function formatReductionRate(value: number | null) {
+  return value === null ? '-' : `${value.toFixed(2)}%`
 }
 
 function formatDate(value: string) {
@@ -102,6 +112,28 @@ function RefreshIcon() {
   )
 }
 
+function DeleteIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M4 7h16M9 7V4.75h6V7m3 0-.75 12.25A1.75 1.75 0 0 1 15.5 21h-7a1.75 1.75 0 0 1-1.75-1.75L6 7m4 4v6m4-6v6" />
+    </svg>
+  )
+}
+
+function DownloadIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M12 4v12m0 0 4.5-4.5M12 16l-4.5-4.5M5 20h14" />
+    </svg>
+  )
+}
+
+function getPreviewFileName(originalName: string, mimeType: string) {
+  const baseName = originalName.replace(/\.[^/.]+$/, '') || 'image'
+  const extension = mimeType === 'image/png' ? 'png' : 'jpg'
+  return `${baseName}-preview.${extension}`
+}
+
 function App() {
   const [clientId] = useState(getClientId)
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
@@ -110,6 +142,9 @@ function App() {
   const [lastResult, setLastResult] = useState<UploadResponse | null>(null)
   const [isDragging, setIsDragging] = useState(false)
   const [isUploading, setIsUploading] = useState(false)
+  const [deletingImageId, setDeletingImageId] = useState<string | null>(null)
+  const [downloadImage, setDownloadImage] = useState<ImageItem | null>(null)
+  const [downloadingType, setDownloadingType] = useState<DownloadType | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isApiOnline, setIsApiOnline] = useState<boolean | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -257,6 +292,69 @@ function App() {
     }
   }
 
+  async function deleteImage(image: ImageItem) {
+    const confirmed = window.confirm(
+      `"${image.originalName}"을(를) 삭제할까요?\n원본과 미리보기가 함께 삭제되며 복구할 수 없어요.`,
+    )
+    if (!confirmed) return
+
+    setDeletingImageId(image.imageId)
+    setError(null)
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/images/${image.imageId}`, {
+        method: 'DELETE',
+        headers: { 'X-Client-Id': clientId },
+      })
+      setIsApiOnline(true)
+
+      if (!response.ok) throw new Error(await getErrorMessage(response))
+
+      setLastResult((result) => result?.imageId === image.imageId ? null : result)
+      await loadImages()
+    } catch (requestError) {
+      if (requestError instanceof TypeError) setIsApiOnline(false)
+      setError(requestError instanceof Error ? requestError.message : '이미지 삭제에 실패했습니다.')
+    } finally {
+      setDeletingImageId(null)
+    }
+  }
+
+  async function downloadSelectedImage(type: DownloadType) {
+    if (!downloadImage || downloadingType) return
+
+    setDownloadingType(type)
+    setError(null)
+
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/api/images/${downloadImage.imageId}/${type}`,
+        { headers: { 'X-Client-Id': clientId } },
+      )
+      setIsApiOnline(true)
+
+      if (!response.ok) throw new Error(await getErrorMessage(response))
+
+      const blob = await response.blob()
+      const objectUrl = URL.createObjectURL(blob)
+      const anchor = document.createElement('a')
+      anchor.href = objectUrl
+      anchor.download = type === 'original'
+        ? downloadImage.originalName
+        : getPreviewFileName(downloadImage.originalName, blob.type)
+      document.body.appendChild(anchor)
+      anchor.click()
+      anchor.remove()
+      URL.revokeObjectURL(objectUrl)
+      setDownloadImage(null)
+    } catch (requestError) {
+      if (requestError instanceof TypeError) setIsApiOnline(false)
+      setError(requestError instanceof Error ? requestError.message : '이미지 다운로드에 실패했습니다.')
+    } finally {
+      setDownloadingType(null)
+    }
+  }
+
   return (
     <div className="app-shell">
       <header className="topbar">
@@ -326,7 +424,7 @@ function App() {
             >
               {isUploading ? <><span className="spinner" /> 이미지 분석 중</> : '분석하고 미리보기 만들기'}
             </button>
-            <p className="upload-note">고해상도 이미지는 안전 기준에 따라 처리가 거부될 수 있어요.</p>
+            <p className="upload-note">고해상도 원본은 그대로 보관하고, 미리보기는 저메모리 방식으로 안전하게 생성해요.</p>
           </div>
         </section>
 
@@ -344,8 +442,10 @@ function App() {
               <div className="metrics-grid">
                 <div><span>해상도</span><strong>{lastResult.width.toLocaleString()} × {lastResult.height.toLocaleString()}</strong></div>
                 <div><span>메가픽셀</span><strong>{lastResult.megapixels.toFixed(2)} MP</strong></div>
-                <div><span>원본 용량</span><strong>{formatBytes(lastResult.originalSize)}</strong></div>
-                <div><span>예상 디코딩 메모리</span><strong>{formatBytes(lastResult.estimatedMemoryBytes)}</strong></div>
+                <div><span>원본 파일 용량</span><strong>{formatBytes(lastResult.originalSize)}</strong></div>
+                <div><span>원본 디코딩 시 예상 RAM</span><strong>{formatBytes(lastResult.estimatedMemoryBytes)}</strong></div>
+                <div><span>미리보기 파일 용량</span><strong>{lastResult.previewSize === null ? '-' : formatBytes(lastResult.previewSize)}</strong></div>
+                <div><span>원본 대비 전송량 절감률</span><strong>{formatReductionRate(lastResult.reductionRatePercent)}</strong></div>
               </div>
               <p className="result-message">{lastResult.message}</p>
             </section>
@@ -391,10 +491,33 @@ function App() {
                     <h3 title={image.originalName}>{image.originalName}</h3>
                     <p>{image.width.toLocaleString()} × {image.height.toLocaleString()} · {image.megapixels.toFixed(2)} MP</p>
                     <div className="card-meta">
-                      <span>{formatBytes(image.originalSize)}</span>
+                      <span>원본 {formatBytes(image.originalSize)}</span>
+                      <span>미리보기 {image.previewSize === null ? '-' : formatBytes(image.previewSize)}</span>
+                      <span>절감률 {formatReductionRate(image.reductionRatePercent)}</span>
                       <time dateTime={image.createdAt}>{formatDate(image.createdAt)}</time>
                     </div>
                     {image.status !== 'COMPLETED' && image.message && <p className="card-message">{image.message}</p>}
+                    <div className="card-actions">
+                      <button
+                        className="download-button"
+                        type="button"
+                        onClick={() => setDownloadImage(image)}
+                        disabled={image.status === 'REJECTED'}
+                        aria-label={`${image.originalName} 다운로드`}
+                      >
+                        <DownloadIcon /> 다운로드
+                      </button>
+                      <button
+                        className="delete-button"
+                        type="button"
+                        onClick={() => void deleteImage(image)}
+                        disabled={deletingImageId !== null}
+                        aria-label={`${image.originalName} 삭제`}
+                      >
+                        {deletingImageId === image.imageId ? <span className="delete-spinner" /> : <DeleteIcon />}
+                        {deletingImageId === image.imageId ? '삭제 중' : '삭제'}
+                      </button>
+                    </div>
                   </div>
                 </article>
               ))}
@@ -402,6 +525,48 @@ function App() {
           )}
         </section>
       </main>
+
+      {downloadImage && (
+        <div className="modal-backdrop" role="presentation" onMouseDown={() => !downloadingType && setDownloadImage(null)}>
+          <section
+            className="download-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="download-dialog-title"
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <p className="section-kicker">DOWNLOAD IMAGE</p>
+            <h2 id="download-dialog-title">어떤 이미지를 저장할까요?</h2>
+            <p>{downloadImage.originalName}</p>
+            <div className="download-options">
+              <button
+                type="button"
+                onClick={() => void downloadSelectedImage('preview')}
+                disabled={!downloadImage.previewUrl || downloadingType !== null}
+              >
+                <strong>미리보기</strong>
+                <span>압축된 가벼운 이미지</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => void downloadSelectedImage('original')}
+                disabled={downloadingType !== null}
+              >
+                <strong>원본</strong>
+                <span>업로드한 원본 이미지</span>
+              </button>
+            </div>
+            <button
+              className="modal-cancel-button"
+              type="button"
+              onClick={() => setDownloadImage(null)}
+              disabled={downloadingType !== null}
+            >
+              {downloadingType ? '다운로드 중...' : '취소'}
+            </button>
+          </section>
+        </div>
+      )}
 
       <footer>
         <span>ImageScope</span>

@@ -71,12 +71,28 @@
             job.original_name,
             job.mime_type,
             job.original_size,
+            variant.file_size AS preview_size,
+            CASE
+                WHEN job.status = 'COMPLETED'
+                     AND variant.file_size IS NOT NULL
+                    THEN CAST(
+                        ROUND(
+                            (1 - CAST(variant.file_size AS NUMERIC)
+                                / NULLIF(job.original_size, 0)) * 100,
+                            2
+                        ) AS DOUBLE PRECISION
+                    )
+                ELSE NULL
+            END AS reduction_rate_percent,
             job.original_width AS width,
             job.original_height AS height,
             job.megapixels,
             job.estimated_memory_bytes,
             job.status,
             CASE
+                WHEN job.status = 'COMPLETED'
+                     AND job.estimated_memory_bytes &gt; 419430400
+                    THEN '고해상도 원본은 그대로 저장하고, 미리보기는 저메모리 샘플링으로 생성했습니다.'
                 WHEN job.status = 'COMPLETED'
                     THEN '원본 및 미리보기 이미지 처리가 완료되었습니다.'
                 WHEN job.status IN ('FAILED', 'REJECTED')
@@ -118,4 +134,43 @@
           AND variant.variant_type = 'PREVIEW'
 
     </select>
+
+    <select id="selectImageJobByIdAndClientId"
+            resultType="com.example.demo.domain.ImageJob">
+
+        SELECT
+            CAST(id AS VARCHAR) AS id,
+            CAST(client_id AS VARCHAR) AS client_id,
+            original_name,
+            mime_type,
+            original_size,
+            original_width,
+            original_height,
+            megapixels,
+            estimated_memory_bytes,
+            status,
+            failure_reason,
+            original_object_key
+        FROM image_job
+        WHERE id = CAST(#{imageId} AS UUID)
+          AND client_id = CAST(#{clientId} AS UUID)
+
+    </select>
+
+    <select id="selectVariantObjectKeysByImageId"
+            resultType="java.lang.String">
+
+        SELECT object_key
+        FROM image_variant
+        WHERE image_id = CAST(#{imageId} AS UUID)
+
+    </select>
+
+    <delete id="deleteImageJobByIdAndClientId">
+
+        DELETE FROM image_job
+        WHERE id = CAST(#{imageId} AS UUID)
+          AND client_id = CAST(#{clientId} AS UUID)
+
+    </delete>
 </mapper>

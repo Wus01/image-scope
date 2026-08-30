@@ -14,6 +14,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
@@ -28,7 +30,8 @@ import com.example.demo.mapper.ImageMapper;
 @Service
 public class ImageService {
     private static final long MAX_FILE_SIZE_BYTES = 20L * 1024 * 1024;
-    private static final long MAX_DECODE_MEMORY_BYTES = 400L * 1024 * 1024;
+    private static final int MAX_IMAGE_DIMENSION = 30_000;
+    private static final long MAX_PIXEL_COUNT = 300_000_000L;
     private final ImageMapper imageMapper;
 
     private final StorageService storageService;
@@ -52,11 +55,13 @@ public class ImageService {
         ImageMetadata metadata = readMetadata(file);
 
         long pixelCount = (long) metadata.width() * metadata.height();
-        long estimatedMemoryBytes = pixelCount * 4;
+        long estimatedMemoryBytes = pixelCount > Long.MAX_VALUE / 4 ? Long.MAX_VALUE : pixelCount * 4;
 
         double megapixels = Math.round(pixelCount / 1_000_000.0 * 100.0) / 100.0;
 
-        boolean rejected = estimatedMemoryBytes > MAX_DECODE_MEMORY_BYTES;
+        boolean rejected = metadata.width() > MAX_IMAGE_DIMENSION
+                            || metadata.height() > MAX_IMAGE_DIMENSION
+                            || pixelCount > MAX_PIXEL_COUNT;
 
         String originalName = StringUtils.cleanPath(file.getOriginalFilename() == null ? "unknown" : file.getOriginalFilename());
 
@@ -74,13 +79,13 @@ public class ImageService {
                     megapixels,
                     estimatedMemoryBytes,
                     "REJECTED",
-                    "예상 디코딩 메모리가 안전 기준 400MB를 초과했습니다.",
+                    "이미지 최대 처리 기준(한 변 30,000px, 300MP)을 초과했습니다.",
                     null
             );
 
             insertImageJob(rejectedJob);
 
-            return ImageUploadResponse.from(rejectedJob);
+            return ImageUploadResponse.from(rejectedJob, null);
         }
         String originalObjectKey = null;
         String previewObjectKey = null;
@@ -142,7 +147,9 @@ public class ImageService {
                 }
             }
 
-            return ImageUploadResponse.from(imageJob);
+            Long previewSize = previewResult == null ? null : (long) previewResult.bytes().length;
+
+            return ImageUploadResponse.from(imageJob, previewSize);
 
         } catch (RuntimeException exception) {
             storageService.deleteQuietly(previewObjectKey);
@@ -181,6 +188,58 @@ public class ImageService {
         return new StoredImage(
                 bytes,
                 previewMimeType(preview.format())
+        );
+    }
+
+    @Transactional(readOnly = true)
+    public StoredImage getOriginal(String imageId, String clientId) {
+        validateClientId(clientId);
+        validateImageId(imageId);
+
+        ImageJob imageJob = imageMapper.selectImageJobByIdAndClientId(imageId, clientId);
+
+        if (imageJob == null || imageJob.originalObjectKey() == null || imageJob.originalObjectKey().isBlank()) {
+            throw new ResponseStatusException(
+                    HttpStatus.NOT_FOUND,
+                    "원본 이미지를 찾을 수 없습니다."
+            );
+        }
+
+        byte[] bytes = storageService.download(imageJob.originalObjectKey());
+
+        return new StoredImage(bytes, imageJob.mimeType());
+    }
+
+    @Transactional
+    public void deleteImage(String imageId, String clientId) {
+        validateClientId(clientId);
+        validateImageId(imageId);
+
+        ImageJob imageJob = imageMapper.selectImageJobByIdAndClientId(imageId, clientId);
+
+        if (imageJob == null) {
+            throw new ResponseStatusException(
+                HttpStatus.NOT_FOUND,
+                "삭제할 이미지를 찾을 수 없습니다."
+            );
+        }
+
+        List<String> variantObjectKeys = imageMapper.selectVariantObjectKeysByImageId(imageId);
+
+        int deletedCount = imageMapper.deleteImageJobByIdAndClientId(imageId, clientId);
+
+        if (deletedCount != 1) {
+            throw new IllegalStateException("이미지 정보 삭제에 실패했습니다.");
+        }
+
+        TransactionSynchronizationManager.registerSynchronization(
+            new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    variantObjectKeys.forEach(storageService::deleteQuietly);
+                    storageService.deleteQuietly(imageJob.originalObjectKey());
+                }
+            }
         );
     }
 

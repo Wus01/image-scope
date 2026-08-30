@@ -7,6 +7,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import software.amazon.awssdk.core.sync.RequestBody;
+import software.amazon.awssdk.core.exception.SdkException;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
@@ -64,8 +65,8 @@ public class StorageService {
 
             s3Client.deleteObject(request);
 
-        } catch (S3Exception ignored) {
-            // DB 저장 실패 시 보상 삭제용이므로 기존 오류를 유지한다.
+        } catch (SdkException ignored) {
+            // 보상·사후 삭제용이므로 기존 요청 결과를 유지한다.
         }
     }
 

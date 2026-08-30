@@ -18,6 +18,7 @@ import com.example.demo.dto.StoredImage;
 import com.example.demo.service.ImageService;
 
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestHeader;
@@ -44,17 +45,12 @@ public class ImageController {
     }
 
     @GetMapping
-    public List<ImageListItemResponse> getImages(
-            @RequestHeader("X-Client-Id") String clientId
-    ) {
+    public List<ImageListItemResponse> getImages(@RequestHeader("X-Client-Id") String clientId) {
         return imageService.getImages(clientId);
     }
 
     @GetMapping("/{imageId}/preview")
-    public ResponseEntity<byte[]> getPreview(
-            @PathVariable String imageId,
-            @RequestHeader("X-Client-Id") String clientId
-    ) {
+    public ResponseEntity<byte[]> getPreview(@PathVariable String imageId, @RequestHeader("X-Client-Id") String clientId) {
         StoredImage preview = imageService.getPreview(imageId, clientId);
 
         return ResponseEntity.ok()
@@ -63,7 +59,22 @@ public class ImageController {
                 .cacheControl(CacheControl.maxAge(Duration.ofHours(1)).cachePrivate())
                 .body(preview.bytes());
     }
-    
-    
-    
+
+    @GetMapping("/{imageId}/original")
+    public ResponseEntity<byte[]> getOriginal(@PathVariable String imageId, @RequestHeader("X-Client-Id") String clientId) {
+        StoredImage original = imageService.getOriginal(imageId, clientId);
+
+        return ResponseEntity.ok()
+                .contentType(MediaType.parseMediaType(original.mimeType()))
+                .contentLength(original.bytes().length)
+                .cacheControl(CacheControl.noStore())
+                .body(original.bytes());
+    }
+
+    @DeleteMapping("/{imageId}")
+    public ResponseEntity<Void> deleteImage(@PathVariable String imageId, @RequestHeader("X-Client-Id") String clientId) {
+        imageService.deleteImage(imageId, clientId);
+
+        return ResponseEntity.noContent().build();
+    }
 }

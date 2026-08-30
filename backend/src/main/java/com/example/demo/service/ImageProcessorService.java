@@ -24,28 +24,23 @@ public class ImageProcessorService {
 
     private static final int PREVIEW_MAX_WIDTH = 1280;
     private static final int PREVIEW_MAX_HEIGHT = 1280;
+    private static final long MAX_WORKING_PIXELS = 12_000_000L;
     private static final double JPEG_QUALITY = 0.82;
 
     public PreviewResult createPreview(MultipartFile file) {
         try (InputStream inputStream = file.getInputStream()) {
 
-            ImageInputStream imageInputStream =
-                    ImageIO.createImageInputStream(inputStream);
+            ImageInputStream imageInputStream = ImageIO.createImageInputStream(inputStream);
 
             if (imageInputStream == null) {
-                throw new IllegalArgumentException(
-                        "이미지 입력 스트림을 생성할 수 없습니다."
-                );
+                throw new IllegalArgumentException("이미지 입력 스트림을 생성할 수 없습니다.");
             }
 
             try (imageInputStream) {
-                Iterator<ImageReader> readers =
-                        ImageIO.getImageReaders(imageInputStream);
+                Iterator<ImageReader> readers = ImageIO.getImageReaders(imageInputStream);
 
                 if (!readers.hasNext()) {
-                    throw new IllegalArgumentException(
-                            "지원하지 않는 이미지 형식입니다."
-                    );
+                    throw new IllegalArgumentException("지원하지 않는 이미지 형식입니다.");
                 }
 
                 ImageReader reader = readers.next();
@@ -56,16 +51,11 @@ public class ImageProcessorService {
                     int originalWidth = reader.getWidth(0);
                     int originalHeight = reader.getHeight(0);
 
-                    String originalFormat = reader.getFormatName()
-                            .toLowerCase(Locale.ROOT);
+                    String originalFormat = reader.getFormatName().toLowerCase(Locale.ROOT);
 
-                    ImageReadParam readParam =
-                            reader.getDefaultReadParam();
+                    ImageReadParam readParam = reader.getDefaultReadParam();
 
-                    int subsampling = calculateSubsampling(
-                            originalWidth,
-                            originalHeight
-                    );
+                    int subsampling = calculateSubsampling(originalWidth, originalHeight);
 
                     if (subsampling > 1) {
                         readParam.setSourceSubsampling(
@@ -77,21 +67,13 @@ public class ImageProcessorService {
                     }
 
                     // GIF는 첫 번째 프레임만 읽는다.
-                    BufferedImage sourceImage =
-                            reader.read(0, readParam);
+                    BufferedImage sourceImage = reader.read(0, readParam);
 
-                    String outputFormat = determineOutputFormat(
-                            originalFormat,
-                            sourceImage
-                    );
+                    String outputFormat = determineOutputFormat(originalFormat, sourceImage);
 
-                    int[] targetSize = calculateTargetSize(
-                            sourceImage.getWidth(),
-                            sourceImage.getHeight()
-                    );
+                    int[] targetSize = calculateTargetSize(sourceImage.getWidth(), sourceImage.getHeight());
 
-                    ByteArrayOutputStream outputStream =
-                            new ByteArrayOutputStream();
+                    ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
 
                     var builder = Thumbnails.of(sourceImage)
                             .size(targetSize[0], targetSize[1])
@@ -103,9 +85,7 @@ public class ImageProcessorService {
 
                     builder.toOutputStream(outputStream);
 
-                    String mimeType = "png".equals(outputFormat)
-                            ? "image/png"
-                            : "image/jpeg";
+                    String mimeType = "png".equals(outputFormat) ? "image/png" : "image/jpeg";
 
                     return new PreviewResult(
                             outputStream.toByteArray(),
@@ -113,7 +93,7 @@ public class ImageProcessorService {
                             mimeType,
                             targetSize[0],
                             targetSize[1]
-                    );
+                        );
 
                 } finally {
                     reader.dispose();
@@ -121,21 +101,20 @@ public class ImageProcessorService {
             }
 
         } catch (IOException exception) {
-            throw new IllegalStateException(
-                    "미리보기 이미지 생성에 실패했습니다.",
-                    exception
-            );
+            throw new IllegalStateException("미리보기 이미지 생성에 실패했습니다.", exception);
         }
     }
 
     private int calculateSubsampling(int width, int height) {
-        int widthFactor = width / PREVIEW_MAX_WIDTH;
-        int heightFactor = height / PREVIEW_MAX_HEIGHT;
+        long sourcePixels = (long) width * height;
 
-        return Math.max(
-                1,
-                Math.max(widthFactor, heightFactor)
-        );
+        if (sourcePixels <= MAX_WORKING_PIXELS) {
+            return 1;
+        }
+
+        double requiredReduction = Math.sqrt((double) sourcePixels / MAX_WORKING_PIXELS);
+
+        return Math.max(1, (int) Math.ceil(requiredReduction));
     }
 
     private int[] calculateTargetSize(int width, int height) {
@@ -147,23 +126,14 @@ public class ImageProcessorService {
                 )
         );
 
-        int targetWidth = Math.max(
-                1,
-                (int) Math.round(width * scale)
-        );
+        int targetWidth = Math.max(1, (int) Math.round(width * scale));
 
-        int targetHeight = Math.max(
-                1,
-                (int) Math.round(height * scale)
-        );
+        int targetHeight = Math.max(1, (int) Math.round(height * scale));
 
         return new int[] { targetWidth, targetHeight };
     }
 
-    private String determineOutputFormat(
-            String originalFormat,
-            BufferedImage image
-    ) {
+    private String determineOutputFormat(String originalFormat, BufferedImage image) {
         if ("gif".equals(originalFormat)) {
             return "png";
         }

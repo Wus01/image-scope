@@ -15,12 +15,13 @@ public interface ImageMapper {
     int insertImageJob(ImageJob imageJob);
     int insertImageVariant(ImageVariant imageVariant);
 
-    List<ImageListItemResponse> selectImagesByClientId(
-            @Param("clientId") String clientId
-    );
+    List<ImageListItemResponse> selectImagesByClientId(@Param("clientId") String clientId);
 
-    ImageVariant selectPreviewByImageIdAndClientId(
-            @Param("imageId") String imageId,
-            @Param("clientId") String clientId
-    );
+    ImageVariant selectPreviewByImageIdAndClientId(@Param("imageId") String imageId, @Param("clientId") String clientId);
+
+    ImageJob selectImageJobByIdAndClientId(@Param("imageId") String imageId, @Param("clientId") String clientId);
+
+    List<String> selectVariantObjectKeysByImageId(@Param("imageId") String imageId);
+
+    int deleteImageJobByIdAndClientId(@Param("imageId") String imageId, @Param("clientId") String clientId);
 }
