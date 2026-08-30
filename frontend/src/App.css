@@ -181,6 +181,7 @@ main {
 
 .upload-icon svg,
 .refresh-button svg,
+.download-button svg,
 .delete-button svg {
   width: 25px;
   height: 25px;
