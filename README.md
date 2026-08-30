@@ -5,6 +5,23 @@
 * [배포 사이트](https://image-scope-six.vercel.app/)
 * [GitHub 저장소](https://github.com/Wus01/image-scope)
 
+## 화면
+
+아래 화면을 캡처하여 `docs/images` 폴더에 추가되어있습니다.
+
+* 이미지 업로드 화면
+  <img width="1862" height="907" alt="ImageScope_main" src="https://github.com/user-attachments/assets/37a208bf-2f03-4b5d-b1c4-ff2700aef836" />
+
+* 이미지 분석 및 처리 결과
+  <img width="1867" height="907" alt="image" src="https://github.com/user-attachments/assets/afd3f41a-a81b-4a8f-a8a1-516878bb1568" />
+
+* 저장된 이미지 목록
+  <img width="1847" height="910" alt="image" src="https://github.com/user-attachments/assets/0c4fd907-2131-4f3c-b125-8c95689dbe25" />
+
+* 원본·미리보기 다운로드 선택 화면
+  <img width="1845" height="903" alt="image" src="https://github.com/user-attachments/assets/b0ba22b9-c5c7-4cc5-b0d1-ec9a4a5c9727" />
+
+
 ## 프로젝트 소개
 
 이미지는 파일 용량이 작더라도 해상도가 지나치게 높으면 브라우저에서 디코딩하고 렌더링할 때 많은 메모리를 사용할 수 있습니다.
@@ -225,15 +242,3 @@ image-scope
     │   └── schema.sql
     └── Dockerfile
 ```
-
-## 화면
-
-아래 화면을 캡처하여 `docs/images` 폴더에 추가되어있습니다.
-
-* 이미지 업로드 화면
-* <img width="1862" height="907" alt="ImageScope_main" src="https://github.com/user-attachments/assets/37a208bf-2f03-4b5d-b1c4-ff2700aef836" />
-
-* 이미지 분석 및 처리 결과
-* 저장된 이미지 목록
-* 원본·미리보기 다운로드 선택 화면
-
